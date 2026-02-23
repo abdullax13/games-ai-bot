@@ -1,6 +1,8 @@
 require("dotenv").config();
-const { Client, GatewayIntentBits, Events } = require("discord.js");
-const OpenAI = require("openai");
+const { Client, GatewayIntentBits } = require("discord.js");
+const mongoose = require("mongoose");
+const { startFlagsEvent } = require("./events/flagsEvent");
+const User = require("./models/User");
 
 const client = new Client({
   intents: [
@@ -10,35 +12,38 @@ const client = new Client({
   ]
 });
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_KEY
+mongoose.connect(process.env.MONGO_URI);
+
+client.on("ready", () => {
+  console.log("Bot ready");
 });
 
-client.once(Events.ClientReady, () => {
-  console.log(`Logged in as ${client.user.tag}`);
-});
+client.on("messageCreate", async message => {
 
-client.on(Events.MessageCreate, async (message) => {
   if (message.author.bot) return;
-  if (!message.mentions.has(client.user)) return;
 
-  await message.channel.sendTyping();
+  if (message.content.startsWith("-ايفنت")) {
 
-  try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: "أنت مساعد داخل بوت ديسكورد ألعاب. رد باختصار." },
-        { role: "user", content: message.content }
-      ],
-      max_tokens: 300
+    if (message.content.includes("100")) {
+      startFlagsEvent(message.channel, 100);
+    } else {
+      startFlagsEvent(message.channel, 10);
+    }
+  }
+
+  if (message.content === "-توب") {
+
+    const top = await User.find().sort({ totalPoints: -1 }).limit(10);
+
+    let text = "أفضل اللاعبين:\n";
+
+    top.forEach((u, i) => {
+      text += `${i + 1}- <@${u.userId}> (${u.totalPoints})\n`;
     });
 
-    await message.reply(response.choices[0].message.content);
-  } catch (err) {
-    console.error(err);
-    message.reply("صار خطأ في الاتصال بالذكاء الاصطناعي.");
+    message.channel.send(text);
   }
+
 });
 
 client.login(process.env.TOKEN);
