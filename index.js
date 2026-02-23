@@ -1,40 +1,39 @@
-require("dotenv").config();
-const { Client, GatewayIntentBits } = require("discord.js");
-const mongoose = require("mongoose");
-const { startFlagsEvent } = require("./events/flagsEvent");
-const User = require("./models/User");
+import "dotenv/config.js";
+import mongoose from "mongoose";
+import { Client, GatewayIntentBits } from "discord.js";
+import { startFlagsEvent } from "./events/flagsEvent.js";
+import User from "./models/User.js";
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
-  ]
+    GatewayIntentBits.MessageContent,
+  ],
 });
 
-mongoose.connect(process.env.MONGO_URI);
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("MongoDB Connected"))
+  .catch((err) => console.error("MongoDB Error:", err));
 
-client.on("ready", () => {
-  console.log("Bot ready");
+client.once("ready", () => {
+  console.log(`Logged in as ${client.user.tag}`);
 });
 
-client.on("messageCreate", async message => {
-
+client.on("messageCreate", async (message) => {
   if (message.author.bot) return;
 
   if (message.content.startsWith("-ايفنت")) {
-
-    if (message.content.includes("100")) {
-      startFlagsEvent(message.channel, 100);
-    } else {
-      startFlagsEvent(message.channel, 10);
-    }
+    // مثال: -ايفنت 50 أو -ايفنت 100
+    const parts = message.content.split(" ");
+    const value = parseInt(parts[1]);
+    const targetPoints = isNaN(value) ? 10 : value;
+    startFlagsEvent(message.channel, targetPoints);
   }
 
   if (message.content === "-توب") {
-
     const top = await User.find().sort({ totalPoints: -1 }).limit(10);
-
     let text = "أفضل اللاعبين:\n";
 
     top.forEach((u, i) => {
@@ -43,7 +42,6 @@ client.on("messageCreate", async message => {
 
     message.channel.send(text);
   }
-
 });
 
 client.login(process.env.TOKEN);
